@@ -22,8 +22,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const clearCurrentFormBtn = document.getElementById('clearCurrentFormBtn');
     const startNewProjectBtn = document.getElementById('startNewProjectBtn');
     const calculationsListMessage = document.getElementById('calculationsListMessage');
-    const generateReportBtn = document.getElementById('generateReportBtn'); // NEW: Generate Report Button
-    const generatePDFReportBtn = document.getElementById('generatePDFReportBtn'); // NEW: Generate PDF Report Button
+    const generateReportBtn = document.getElementById('generateReportBtn');
+    const generatePDFReportBtn = document.getElementById('generatePDFReportBtn');
 
     let currentLoadedProjectName = null;
     let currentProjectData = { calculations: [] };
@@ -229,7 +229,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const effectiveBrickHeight = brickSizeHeight + mortarJointThickness;
         const bricksPerSqMeter = 1 / (effectiveBrickLength * effectiveBrickHeight);
 
-        const layersInThickness = Math.round(wallThickness / (brickSizeWidth + mortarJointThickness));
+        let layersInThickness = Math.round(wallThickness / (brickSizeWidth + mortarJointThickness));
         if (layersInThickness === 0) layersInThickness = 1;
 
         const totalBricksWithoutWaste = bricksPerSqMeter * wallLength * wallHeight * layersInThickness;
@@ -288,16 +288,32 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function calculateAndAggregateResults(calculationsToProcess = []) {
         resultsDiv.innerHTML = '';
-
+        
+        // NEW: If no calculations are passed, try to get from the current form
         let displayCalculations = calculationsToProcess;
         if (calculationsToProcess.length === 0) {
             const currentCalculation = collectCurrentCalculationData();
             if (currentCalculation) {
                 displayCalculations = [currentCalculation];
             } else {
-                resultsDiv.innerHTML = '<p class="error-message">No valid calculation to display. Please correct inputs.</p>';
+                resultsDiv.innerHTML = '<p class="error-message">Please correct input errors to see calculation results.</p>';
                 return;
             }
+        }
+        
+        // Filter out any invalid calculations before processing
+        displayCalculations = displayCalculations.filter(calc => {
+            if (calc.type === 'concrete') {
+                return calc.length > 0 && calc.width > 0 && calc.height > 0;
+            } else if (calc.type === 'bricks') {
+                return calc.wallLength > 0 && calc.wallHeight > 0 && calc.wallThickness > 0;
+            }
+            return false;
+        });
+
+        if (displayCalculations.length === 0) {
+            resultsDiv.innerHTML = '<p class="error-message">No valid calculations to display. Please correct inputs.</p>';
+            return;
         }
 
         let totalCementBags = 0;
@@ -309,39 +325,46 @@ document.addEventListener('DOMContentLoaded', () => {
         let individualResultsHtml = '<h2>Individual Calculation Results</h2>';
         individualResultsHtml += '<div class="individual-calculations-list">';
 
-        if (displayCalculations.length === 0) {
-            individualResultsHtml += '<p>No calculations available to display.</p>';
-        } else {
-            displayCalculations.forEach((calc, index) => {
-                individualResultsHtml += `<div class="calculation-detail">`;
-                individualResultsHtml += `<h4>${calc.name || 'Untitled Calculation'} (${calc.type})</h4>`;
-                individualResultsHtml += `<p>Waste: ${calc.wasteFactor || 0}%</p>`;
+        displayCalculations.forEach((calc, index) => {
+            individualResultsHtml += `<div class="calculation-detail">`;
+            individualResultsHtml += `<h4>${calc.name || 'Untitled Calculation'} (${calc.type})</h4>`;
+            individualResultsHtml += `<p>Waste: ${calc.wasteFactor || 0}%</p>`;
 
-                if (calc.type === 'concrete' && calc.calculated) {
-                    const c = calc.calculated;
-                    individualResultsHtml += `<p><strong>Wet Concrete Volume:</strong> ${c.wetVolume.toFixed(2)} m³</p>`;
-                    individualResultsHtml += `<p><strong>Cement:</strong> ${c.cementVolume.toFixed(2)} m³ (~ ${c.cementBags.toFixed(1)} bags)</p>`;
-                    individualResultsHtml += `<p><strong>Sand:</strong> ${c.sandVolume.toFixed(2)} m³</p>`;
-                    individualResultsHtml += `<p><strong>Aggregate:</strong> ${c.aggregateVolume.toFixed(2)} m³</p>`;
-
-                    totalCementBags += c.cementBags;
-                    totalSandM3 += c.sandVolume;
-                    totalAggregateM3 += c.aggregateVolume;
-
-                } else if (calc.type === 'bricks' && calc.calculated) {
-                    const b = calc.calculated;
-                    individualResultsHtml += `<p><strong>Total Bricks:</strong> ${b.totalBricks} Nos.</p>`;
-                    individualResultsHtml += `<p><strong>Total Mortar (Wet):</strong> ${b.totalMortarWetVolume.toFixed(3)} m³</p>`;
-                    individualResultsHtml += `<p><strong>Cement for Mortar:</strong> ${b.cementMortarVolume.toFixed(3)} m³ (~ ${b.cementMortarBags} bags)</p>`;
-                    individualResultsHtml += `<p><strong>Sand for Mortar:</strong> ${b.sandMortarVolume.toFixed(3)} m³</p>`;
-
-                    totalBricksNos += b.totalBricks;
-                    totalCementBags += b.cementMortarBags;
-                    totalSandM3 += b.sandMortarVolume;
+            // NEW: Recalculate based on input data if `calc.calculated` is missing or invalid
+            let calculatedData = calc.calculated;
+            if (!calculatedData) {
+                if (calc.type === 'concrete') {
+                    calculatedData = calculateConcreteForExport(calc)?.calculated;
+                } else if (calc.type === 'bricks') {
+                    calculatedData = calculateBricksForExport(calc)?.calculated;
                 }
-                individualResultsHtml += `</div>`;
-            });
-        }
+                calc.calculated = calculatedData;
+            }
+
+            if (calc.type === 'concrete' && calculatedData) {
+                const c = calculatedData;
+                individualResultsHtml += `<p><strong>Wet Concrete Volume:</strong> ${c.wetVolume.toFixed(2)} m³</p>`;
+                individualResultsHtml += `<p><strong>Cement:</strong> ${c.cementVolume.toFixed(2)} m³ (~ ${c.cementBags.toFixed(1)} bags)</p>`;
+                individualResultsHtml += `<p><strong>Sand:</strong> ${c.sandVolume.toFixed(2)} m³</p>`;
+                individualResultsHtml += `<p><strong>Aggregate:</strong> ${c.aggregateVolume.toFixed(2)} m³</p>`;
+
+                totalCementBags += c.cementBags;
+                totalSandM3 += c.sandVolume;
+                totalAggregateM3 += c.aggregateVolume;
+
+            } else if (calc.type === 'bricks' && calculatedData) {
+                const b = calculatedData;
+                individualResultsHtml += `<p><strong>Total Bricks:</strong> ${b.totalBricks} Nos.</p>`;
+                individualResultsHtml += `<p><strong>Total Mortar (Wet):</strong> ${b.totalMortarWetVolume.toFixed(3)} m³</p>`;
+                individualResultsHtml += `<p><strong>Cement for Mortar:</strong> ${b.cementMortarVolume.toFixed(3)} m³ (~ ${b.cementMortarBags} bags)</p>`;
+                individualResultsHtml += `<p><strong>Sand for Mortar:</strong> ${b.sandMortarVolume.toFixed(3)} m³</p>`;
+
+                totalBricksNos += b.totalBricks;
+                totalCementBags += b.cementMortarBags;
+                totalSandM3 += b.sandMortarVolume;
+            }
+            individualResultsHtml += `</div>`;
+        });
         individualResultsHtml += `</div>`;
 
         totalEstimatedCost += totalCementBags * materialPrices.cement_bags;
@@ -390,20 +413,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
             currentProjectData.projectName = projectName;
 
-            const dataToSend = { ...currentProjectData }; // Create a shallow copy
+            const dataToSend = { ...currentProjectData };
             dataToSend.calculations = dataToSend.calculations.map(calc => {
-                const newCalc = { ...calc }; // Copy individual calculation
-                // --- FIXED: Check for all types of client-side temporary IDs ---
-                // MongoDB expects valid ObjectIds for _id. If we generated a temporary string _id,
-                // we must delete it so MongoDB can generate a proper one.
+                const newCalc = { ...calc };
                 if (typeof newCalc._id === 'string') {
                     if (newCalc._id.startsWith('temp_') || newCalc._id.startsWith('plan_wall_') || newCalc._id.startsWith('plan_room_')) {
                         delete newCalc._id;
                     }
-                    // Optional: If _id is a string but doesn't look like a valid ObjectId (e.g., 24 hex chars),
-                    // it might also need to be deleted. But for now, checking prefixes is enough.
                 }
-                // --- END FIXED ---
                 return newCalc;
             });
 
@@ -425,7 +442,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     headers: {
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify(dataToSend) // Send the cleaned dataToSend object
+                    body: JSON.stringify(dataToSend)
                 });
 
                 const result = await response.json();
@@ -434,7 +451,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     displaySaveMessage(`Project "${result.projectName}" ${method === 'POST' ? 'saved' : 'updated'} successfully!`, true);
                     projectNameInput.value = result.projectName;
                     currentLoadedProjectName = result.projectName;
-                    currentProjectData = { ...result }; // Update currentProjectData with saved/updated data (includes actual _ids now)
+                    currentProjectData = { ...result };
                     displayProjectCalculations();
                     calculateAndAggregateResults(currentProjectData.calculations);
                     await populateProjectList();
@@ -454,7 +471,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (isSuccess) {
             loadMessageDiv.classList.add('success');
         } else {
-            loadLoadMessage.classList.add('error'); // Fixed typo here
+            loadMessageDiv.classList.add('error');
         }
         setTimeout(() => {
             loadMessageDiv.textContent = '';
@@ -624,19 +641,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     calculateBtn.addEventListener('click', () => {
-        const selectedMaterial = materialTypeSelect.value;
-        let currentCalculation = null;
-
-        if (selectedMaterial === 'concrete') {
-            currentCalculation = calculateConcrete();
-        } else if (selectedMaterial === 'bricks') {
-            currentCalculation = calculateBricks();
-        }
-
-        if (currentCalculation) {
-            calculateAndAggregateResults([currentCalculation]);
+        // NEW: If a project is loaded, recalculate all. Otherwise, do a single calc.
+        if (currentProjectData.calculations.length > 0) {
+            calculateAndAggregateResults(currentProjectData.calculations);
         } else {
-            resultsDiv.innerHTML = '<p class="error-message">Please correct input errors to see calculation results.</p>';
+            const selectedMaterial = materialTypeSelect.value;
+            let currentCalculation = null;
+
+            if (selectedMaterial === 'concrete') {
+                currentCalculation = calculateConcrete();
+            } else if (selectedMaterial === 'bricks') {
+                currentCalculation = calculateBricks();
+            }
+
+            if (currentCalculation) {
+                calculateAndAggregateResults([currentCalculation]);
+            } else {
+                resultsDiv.innerHTML = '<p class="error-message">Please correct input errors to see calculation results.</p>';
+            }
         }
     });
 
@@ -766,15 +788,12 @@ document.addEventListener('DOMContentLoaded', () => {
         displayProjectCalculations();
     });
 
-    // --- NEW: Event Listener for Generate Report Button ---
     generateReportBtn.addEventListener('click', async () => {
         if (!currentProjectData.projectName || currentProjectData.calculations.length === 0) {
             displaySaveMessage('Load or create a project with calculations first to generate a report.', false);
             return;
         }
 
-        // Prepare data to send to backend for report generation
-        // We'll send the entire currentProjectData
         const reportData = {
             projectName: currentProjectData.projectName,
             description: currentProjectData.description,
@@ -782,9 +801,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         try {
-            // We'll send a POST request to a new backend endpoint
-            // The backend will generate the file and send it back
-            const response = await fetch('http://localhost:5000/api/reports/csv', { // Example: CSV report
+            const response = await fetch('http://localhost:5000/api/reports/csv', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -793,20 +810,18 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (response.ok) {
-                // If the backend sends a file, this will trigger the download
-                // response.blob() handles binary data like files
                 const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.style.display = 'none';
                 a.href = url;
-                a.download = `${currentProjectData.projectName.replace(/[^a-z0-9]/gi, '_')}_Material_Report.csv`; // Sanitize filename
+                a.download = `${currentProjectData.projectName.replace(/[^a-z0-9]/gi, '_')}_Material_Report.csv`;
                 document.body.appendChild(a);
-                a.click(); // Programmatically click the link to trigger download
-                window.URL.revokeObjectURL(url); // Clean up the URL object
+                a.click();
+                window.URL.revokeObjectURL(url);
                 displaySaveMessage('Report generated and download initiated!', true);
             } else {
-                const errorResult = await response.json(); // Backend might send error JSON
+                const errorResult = await response.json();
                 displaySaveMessage(`Error generating report: ${errorResult.message || 'Unknown error'}`, false);
             }
         } catch (error) {
@@ -815,7 +830,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- NEW: Event Listener for Generate PDF Report Button ---
     generatePDFReportBtn.addEventListener('click', async () => {
         if (!currentProjectData.projectName || currentProjectData.calculations.length === 0) {
             displaySaveMessage('Load or create a project with calculations first to generate a PDF report.', false);
@@ -838,7 +852,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
 
             if (response.ok) {
-                const blob = await response.blob(); // PDF is a blob
+                const blob = await response.blob();
                 const url = window.URL.createObjectURL(blob);
                 const a = document.createElement('a');
                 a.style.display = 'none';
@@ -858,70 +872,60 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
-    // --- NEW: Logic for handling exported plan elements from sessionStorage ---
     function loadExportedPlanElements() {
         const exportedPlanElementsJSON = sessionStorage.getItem('exportedPlanElements');
         if (exportedPlanElementsJSON) {
             try {
                 const elements = JSON.parse(exportedPlanElementsJSON);
-                sessionStorage.removeItem('exportedPlanElements'); // Clear it immediately
+                sessionStorage.removeItem('exportedPlanElements');
 
                 if (elements.length > 0) {
-                    clearCalculatorInputs(); // Clear current form state
-                    projectNameInput.value = 'New Plan Project - ' + Date.now(); // Suggest a project name
-                    currentLoadedProjectName = null; // Ensure it's treated as a new project
+                    clearCalculatorInputs();
+                    projectNameInput.value = 'New Plan Project - ' + Date.now();
+                    currentLoadedProjectName = null;
                     currentProjectData = { projectName: projectNameInput.value, calculations: [] };
                     
                     const newCalculations = [];
                     let plotAreaCalculation = null;
 
                     elements.forEach(element => {
-                        if (element.type === 'external_wall' || element.type === 'internal_wall') {
-                            // Convert wall element to a Bricks calculation
-                            // Assumptions: All walls are brickwork, standard mortar mix, standard brick size
-                            // You can make these configurable later.
+                        // NEW: Added a check to only process elements with valid dimensions
+                        if (element.type === 'bricks' && element.wallLength > 0.1) {
                             const wallCalculation = {
-                                _id: 'plan_wall_' + element._id, // Retain ID from plan, prefix to distinguish
+                                _id: 'plan_wall_' + Date.now(),
                                 type: 'bricks',
-                                name: `${element.name || element.type} - ${element.length.toFixed(2)}m`,
-                                wallLength: element.length,
-                                wallHeight: 3.0, // Assuming a standard wall height for all walls (e.g., 3 meters)
-                                wallThickness: element.thickness,
-                                mortarMix: '1:4',
-                                brickSizeLength: 0.190,
-                                brickSizeWidth: 0.090,
-                                brickSizeHeight: 0.090,
-                                mortarJointThickness: 0.010,
-                                wasteFactor: 5 // Default waste factor
+                                name: `${element.name || element.type} - ${element.wallLength.toFixed(2)}m`,
+                                wallLength: element.wallLength,
+                                wallHeight: element.wallHeight,
+                                wallThickness: element.wallThickness,
+                                mortarMix: element.mortarMix,
+                                brickSizeLength: element.brickSizeLength,
+                                brickSizeWidth: element.brickSizeWidth,
+                                brickSizeHeight: element.brickSizeHeight,
+                                mortarJointThickness: element.mortarJointThickness,
+                                wasteFactor: element.wasteFactor
                             };
-                            // Manually calculate quantities for the exported wall to store 'calculated' data
-                            // This mimics what calculateBricks() would do
                             const mockBrickCalc = calculateBricksForExport(wallCalculation);
                             if(mockBrickCalc) {
                                 wallCalculation.calculated = mockBrickCalc.calculated;
                                 newCalculations.push(wallCalculation);
                             }
-                        } else if (element.type === 'room') {
-                            // Convert room element to a Flooring/Painting calculation (example)
-                            // This is a simplified approach, you'd need more details for concrete/plaster
+                        } else if (element.type === 'concrete' && element.length > 0 && element.width > 0 && element.height > 0) {
                             const roomCalculation = {
-                                _id: 'plan_room_' + element._id,
-                                type: 'concrete', // Can be refined to 'flooring' or 'paint'
-                                name: `${element.name || 'Room'} - Flooring`,
-                                length: element.width,
-                                width: element.height,
-                                height: 0.1, // Assuming a nominal thickness for flooring concrete
-                                concreteMix: '1:2:4',
-                                wasteFactor: 5,
+                                _id: 'plan_room_' + Date.now(),
+                                type: 'concrete',
+                                name: `${element.name} - Flooring`,
+                                length: element.length,
+                                width: element.width,
+                                height: element.height,
+                                concreteMix: element.concreteMix,
+                                wasteFactor: element.wasteFactor
                             };
                             const mockConcreteCalc = calculateConcreteForExport(roomCalculation);
                             if (mockConcreteCalc) {
                                 roomCalculation.calculated = mockConcreteCalc.calculated;
                                 newCalculations.push(roomCalculation);
                             }
-                        } else if (element.type === 'plot_area') {
-                            plotAreaCalculation = element; // Keep plot area data for reference
-                            // No direct QSC calculation from plot area usually, but useful info.
                         }
                     });
 
@@ -931,13 +935,6 @@ document.addEventListener('DOMContentLoaded', () => {
                     displayProjectCalculations();
                     calculateAndAggregateResults(currentProjectData.calculations);
                     displaySaveMessage('Plan imported successfully! Review and Save Project.', true);
-                    
-                    // You might want to display the overall plot area info somewhere
-                    if (plotAreaCalculation) {
-                        // For now, just log it. Could add a dedicated display area.
-                        console.log('Imported Plot Area:', plotAreaCalculation);
-                    }
-
                 } else {
                     displaySaveMessage('No elements found in exported plan data.', false);
                 }
@@ -948,12 +945,11 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // --- Helper for export: A "mock" calculateBricks/Concrete that doesn't modify UI ---
-    // These functions perform the calculation logic similar to the main calc functions
-    // but without touching the DOM directly, so they can be reused for imported data.
-
     function calculateBricksForExport(data) {
-        // Use data from the imported element
+        if (data.wallLength <= 0 || data.wallHeight <= 0 || data.wallThickness <= 0) {
+            return null;
+        }
+
         const wallLength = data.wallLength;
         const wallHeight = data.wallHeight;
         const wallThickness = data.wallThickness;
@@ -974,7 +970,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const effectiveBrickHeight = brickSizeHeight + mortarJointThickness;
         const bricksPerSqMeter = 1 / (effectiveBrickLength * effectiveBrickHeight);
 
-        const layersInThickness = Math.round(wallThickness / (brickSizeWidth + mortarJointThickness));
+        let layersInThickness = Math.round(wallThickness / (brickSizeWidth + mortarJointThickness));
         if (layersInThickness === 0) layersInThickness = 1;
 
         const totalBricksWithoutWaste = bricksPerSqMeter * wallLength * wallHeight * layersInThickness;
@@ -1001,6 +997,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function calculateConcreteForExport(data) {
+        if (data.length <= 0 || data.width <= 0 || data.height <= 0) {
+            return null;
+        }
+
         const length = data.length;
         const width = data.width;
         const height = data.height;
@@ -1040,8 +1040,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
     }
 
-
     // --- INITIAL LOAD ---
     populateProjectList();
-    loadExportedPlanElements(); // Call this on page load for QSC page
+    loadExportedPlanElements();
 });

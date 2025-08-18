@@ -19,6 +19,9 @@ document.addEventListener('DOMContentLoaded', () => {
     const exportToQSCBtn = document.getElementById('exportToQSCBtn');
     const drawnElementsCount = document.getElementById('drawnElementsCount');
     const drawnElementsList = document.getElementById('drawnElementsList');
+    
+    const roomTemplatesSection = document.getElementById('roomTemplatesSection');
+    const templateItems = document.querySelectorAll('.template-item');
 
     // --- Configuration Constants ---
     const PIXELS_PER_METER = 30;
@@ -143,7 +146,6 @@ document.addEventListener('DOMContentLoaded', () => {
         ctx.fillText(text, xPx, yPx);
     }
 
-    // UPDATED: This function no longer draws dimensions to avoid overlap
     function drawRoom(room, isSelected = false) {
         ctx.save();
         const xPx = room.x * PIXELS_PER_METER;
@@ -167,6 +169,10 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function drawWall(wall, isSelected = false) {
+        if (getDistance({x: wall.x1, y: wall.y1}, {x: wall.x2, y: wall.y2}) === 0) {
+            return;
+        }
+        
         const wallThicknessPx = wall.thickness * PIXELS_PER_METER;
         const halfThickness = wallThicknessPx / 2;
 
@@ -355,7 +361,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 drawRoom(element, isHighlighted);
             }
         });
-        
+
         if (isDrawing && startPoint && endPoint) {
             if (currentMode === 'DRAW_WALL') {
                 const tempWall = {
@@ -400,50 +406,48 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         const exportableData = [];
-        drawnElements.forEach(element => {
-            if (element.type === 'wall' && element.parent === undefined) {
-                const wallLength = getDistance({ x: element.x1, y: element.y1 }, { x: element.x2, y: element.y2 });
-                const wallThickness = element.thickness;
+        const rooms = drawnElements.filter(el => el.type === 'room');
+        const standaloneWalls = drawnElements.filter(el => el.type === 'wall' && el.parent === undefined);
 
-                exportableData.push({
-                    type: 'bricks',
-                    name: `Wall: ${wallLength.toFixed(2)}m`,
-                    wallLength: wallLength,
-                    wallHeight: 3.0,
-                    wallThickness: wallThickness,
-                    mortarMix: '1:4',
-                    wasteFactor: 5
-                });
-            } else if (element.type === 'room') {
-                const roomArea = element.width * element.height;
+        // Process rooms first
+        rooms.forEach(room => {
+            const roomArea = room.width * room.height;
+            // Only export floor area if it's a valid size
+            if (roomArea > 0.1) {
                 exportableData.push({
                     type: 'concrete',
-                    name: `${element.name} (Floor)`,
-                    length: element.width,
-                    width: element.height,
+                    name: `${room.name} (Floor)`,
+                    length: room.width,
+                    width: room.height,
                     height: 0.15,
                     concreteMix: '1:2:4',
                     wasteFactor: 5
                 });
-                const wallsOfRoom = drawnElements.filter(el => el.parent === element.id);
-                wallsOfRoom.forEach(wall => {
-                    const wallLength = getDistance({ x: wall.x1, y: wall.y1 }, { x: wall.x2, y: wall.y2 });
-                    const wallThickness = wall.thickness;
+            }
+        });
+
+        // Process all walls (both standalone and part of rooms)
+        drawnElements.forEach(element => {
+            if (element.type === 'wall') {
+                const wallLength = getDistance({ x: element.x1, y: element.y1 }, { x: element.x2, y: element.y2 });
+                // Only export walls that have a valid length
+                if (wallLength > 0.1) {
+                    const wallThickness = element.thickness;
                     exportableData.push({
                         type: 'bricks',
-                        name: `${element.name} - Wall: ${wallLength.toFixed(2)}m`,
+                        name: element.parent ? `${drawnElements.find(el => el.id === element.parent).name} - Wall` : `Standalone Wall`,
                         wallLength: wallLength,
                         wallHeight: 3.0,
                         wallThickness: wallThickness,
                         mortarMix: '1:4',
                         wasteFactor: 5
                     });
-                });
+                }
             }
         });
 
         sessionStorage.setItem('exportedPlanElements', JSON.stringify(exportableData));
-
+        
         window.location.href = 'qsc.html';
     }
 
@@ -522,7 +526,8 @@ document.addEventListener('DOMContentLoaded', () => {
     designerCanvas.addEventListener('mouseup', (e) => {
         if (e.button === 0) {
             if (isDrawing && startPoint && endPoint) {
-                if (currentMode === 'DRAW_WALL' && getDistance(startPoint, endPoint) > 0.1) {
+                const wallLength = getDistance(startPoint, endPoint);
+                if (currentMode === 'DRAW_WALL' && wallLength > 0.1) {
                     drawnElements.push({
                         id: generateId('wall'),
                         type: 'wall',
@@ -533,33 +538,35 @@ document.addEventListener('DOMContentLoaded', () => {
                         thickness: parseFloat(wallThicknessInput.value)
                     });
                     saveState();
-                } else if (currentMode === 'CREATE_ROOM' && getDistance(startPoint, endPoint) > 0.1) {
-                    const thickness = parseFloat(wallThicknessInput.value);
-                    const minX = Math.min(startPoint.x, endPoint.x);
-                    const minY = Math.min(startPoint.y, endPoint.y);
+                } else if (currentMode === 'CREATE_ROOM') {
                     const roomWidth = Math.abs(endPoint.x - startPoint.x);
                     const roomHeight = Math.abs(endPoint.y - startPoint.y);
-                    const roomName = roomNameInput.value || 'New Room';
-                    const roomId = generateId('room');
+                    if (roomWidth > 0.1 && roomHeight > 0.1) {
+                        const thickness = parseFloat(wallThicknessInput.value);
+                        const minX = Math.min(startPoint.x, endPoint.x);
+                        const minY = Math.min(startPoint.y, endPoint.y);
+                        const roomName = roomNameInput.value || 'New Room';
+                        const roomId = generateId('room');
 
-                    drawnElements.push({
-                        id: roomId,
-                        type: 'room',
-                        x: minX,
-                        y: minY,
-                        width: roomWidth,
-                        height: roomHeight,
-                        name: roomName
-                    });
+                        drawnElements.push({
+                            id: roomId,
+                            type: 'room',
+                            x: minX,
+                            y: minY,
+                            width: roomWidth,
+                            height: roomHeight,
+                            name: roomName
+                        });
 
-                    const walls = [
-                        { id: generateId('wall'), type: 'wall', parent: roomId, x1: minX, y1: minY, x2: minX + roomWidth, y2: minY, thickness: thickness },
-                        { id: generateId('wall'), type: 'wall', parent: roomId, x1: minX, y1: minY + roomHeight, x2: minX + roomWidth, y2: minY + roomHeight, thickness: thickness },
-                        { id: generateId('wall'), type: 'wall', parent: roomId, x1: minX, y1: minY, x2: minX, y2: minY + roomHeight, thickness: thickness },
-                        { id: generateId('wall'), type: 'wall', parent: roomId, x1: minX + roomWidth, y1: minY, x2: minX + roomWidth, y2: minY + roomHeight, thickness: thickness }
-                    ];
-                    drawnElements.push(...walls);
-                    saveState();
+                        const walls = [
+                            { id: generateId('wall'), type: 'wall', parent: roomId, x1: minX, y1: minY, x2: minX + roomWidth, y2: minY, thickness: thickness },
+                            { id: generateId('wall'), type: 'wall', parent: roomId, x1: minX, y1: minY + roomHeight, x2: minX + roomWidth, y2: minY + roomHeight, thickness: thickness },
+                            { id: generateId('wall'), type: 'wall', parent: roomId, x1: minX, y1: minY, x2: minX, y2: minY + roomHeight, thickness: thickness },
+                            { id: generateId('wall'), type: 'wall', parent: roomId, x1: minX + roomWidth, y1: minY, x2: minX + roomWidth, y2: minY + roomHeight, thickness: thickness }
+                        ];
+                        drawnElements.push(...walls);
+                        saveState();
+                    }
                 }
                 isDrawing = false;
                 startPoint = null;
@@ -658,6 +665,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (btn) btn.classList.remove('active');
         });
 
+        if (roomTemplatesSection) {
+            roomTemplatesSection.classList.add('hidden');
+        }
+
         if (mode === 'DRAW_WALL') {
             drawWallToolBtn.classList.add('active');
             statusMessage.textContent = 'Ready to draw walls.';
@@ -668,8 +679,11 @@ document.addEventListener('DOMContentLoaded', () => {
             designerCanvas.style.cursor = 'grab';
         } else if (mode === 'CREATE_ROOM') {
             createRoomToolBtn.classList.add('active');
-            statusMessage.textContent = 'Click and drag to create a new room.';
+            statusMessage.textContent = 'Click and drag to create a new room, or select a template.';
             designerCanvas.style.cursor = 'crosshair';
+            if (roomTemplatesSection) {
+                roomTemplatesSection.classList.remove('hidden');
+            }
         }
 
         selectedElement = null;
@@ -750,6 +764,53 @@ document.addEventListener('DOMContentLoaded', () => {
             saveState();
             updateUIForSelection();
         }
+    });
+    
+    templateItems.forEach(item => {
+        item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            const templateName = item.dataset.templateName;
+            const width = parseFloat(item.dataset.width);
+            const height = parseFloat(item.dataset.height);
+            
+            if (width <= 0 || height <= 0) {
+                statusMessage.textContent = 'Error: Invalid template dimensions.';
+                return;
+            }
+
+            const thickness = parseFloat(wallThicknessInput.value);
+            const roomId = generateId('room');
+
+            const canvasRect = designerCanvas.getBoundingClientRect();
+            const centerX = (canvasRect.width / 2) / (PIXELS_PER_METER * view.scale);
+            const centerY = (canvasRect.height / 2) / (PIXELS_PER_METER * view.scale);
+            
+            const startX = centerX - width / 2;
+            const startY = centerY - height / 2;
+            
+            drawnElements.push({
+                id: roomId,
+                type: 'room',
+                x: startX,
+                y: startY,
+                width: width,
+                height: height,
+                name: templateName
+            });
+
+            const walls = [
+                { id: generateId('wall'), type: 'wall', parent: roomId, x1: startX, y1: startY, x2: startX + width, y2: startY, thickness: thickness },
+                { id: generateId('wall'), type: 'wall', parent: roomId, x1: startX, y1: startY + height, x2: startX + width, y2: startY + height, thickness: thickness },
+                { id: generateId('wall'), type: 'wall', parent: roomId, x1: startX, y1: startY, x2: startX, y2: startY + height, thickness: thickness },
+                { id: generateId('wall'), type: 'wall', parent: roomId, x1: startX + width, y1: startY, x2: startX + width, y2: startY + height, thickness: thickness }
+            ];
+            drawnElements.push(...walls);
+            saveState();
+
+            selectedElement = drawnElements.find(el => el.id === roomId);
+            selectedRoomIdForDetails = roomId;
+            updateUIForSelection();
+        });
     });
 
     roomNameInput.addEventListener('input', () => {
