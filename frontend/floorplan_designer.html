@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Floor Plan Designer</title>
+    <link rel="stylesheet" href="qsc.css">
+    <link rel="stylesheet" href="floorplan.css">
+</head>
+<body>
+    <div class="main-designer-wrapper">
+        <a href="index.html" class="nav-button">← Back to Home</a>
+        <div class="designer-header">
+            <h1>Interactive Floor Plan Designer</h1>
+            <div class="designer-actions">
+                <button id="exportToQSCBtn" class="add-button">Export Dimensions to QSC</button>
+            </div>
+        </div>
+
+        <div class="designer-main">
+            <div class="designer-tools-sidebar">
+                <div class="tool-section">
+                    <h3>Build Tools</h3>
+                    <button id="drawWallTool" class="tool-button active"><i class="fas fa-ruler-combined"></i> Draw Walls</button>
+                    <button id="selectTool" class="tool-button"><i class="fas fa-mouse-pointer"></i> Select/Move</button>
+                    <button id="deleteBtn" class="tool-button delete-button"><i class="fas fa-trash-alt"></i> Delete</button>
+                    <button id="copyBtn" class="tool-button copy-button"><i class="fas fa-copy"></i> Copy</button>
+                    <button id="rotateBtn" class="tool-button rotate-button"><i class="fas fa-redo-alt"></i> Rotate 90°</button>
+                </div>
+                <div class="tool-section">
+                    <h3>Room & Object Tools</h3>
+                    <button id="createRoomTool" class="tool-button"><i class="fas fa-vector-square"></i> Create Room</button>
+                    <button id="addDoorTool" class="tool-button"><i class="fas fa-door-open"></i> Add Door</button>
+                    <button id="addWindowTool" class="tool-button"><i class="fas fa-window-maximize"></i> Add Window</button>
+                    <div id="roomNameContainer" class="input-group hidden">
+                        <label for="roomNameInput">Room Name:</label>
+                        <input type="text" id="roomNameInput" placeholder="e.g., Living Room">
+                    </div>
+                </div>
+                <div class="tool-section">
+                    <h3>Room Templates</h3>
+                    <div class="template-gallery">
+                        <div class="template-item" data-template-name="Living Room" data-width="8" data-height="6">
+                            <img src="https://via.placeholder.com/100x80.png?text=Living" alt="Living Room Template">
+                            <span>Living Room</span>
+                        </div>
+                        <div class="template-item" data-template-name="Bedroom" data-width="5" data-height="4">
+                            <img src="https://via.placeholder.com/100x80.png?text=Bedroom" alt="Bedroom Template">
+                            <span>Bedroom</span>
+                        </div>
+                        <div class="template-item" data-template-name="Kitchen" data-width="4" data-height="4">
+                            <img src="https://via.placeholder.com/100x80.png?text=Kitchen" alt="Kitchen Template">
+                            <span>Kitchen</span>
+                        </div>
+                        <div class="template-item" data-template-name="Bathroom" data-width="3" data-height="2">
+                            <img src="https://via.placeholder.com/100x80.png?text=Bathroom" alt="Bathroom Template">
+                            <span>Bathroom</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="tool-section">
+                    <h3>Wall Properties</h3>
+                    <div class="input-group">
+                        <label for="wallThickness">Thickness (m):</label>
+                        <input type="number" id="wallThickness" step="0.01" min="0.05" value="0.15">
+                    </div>
+                </div>
+            </div>
+
+            <div class="designer-canvas-area">
+                <div id="designerCanvasContainer">
+                    <canvas id="designerCanvas"></canvas>
+                </div>
+                <div class="status-bar">
+                    <span id="coordinatesDisplay">X: 0.00m, Y: 0.00m</span>
+                    <span id="statusMessage">Ready to draw walls.</span>
+                </div>
+            </div>
+
+            <div class="designer-details-sidebar">
+                <div class="details-section">
+                    <h3>Drawn Elements (<span id="drawnElementsCount">0</span>)</h3>
+                    <div id="drawnElementsList" class="details-panel">
+                        <p>No elements drawn yet.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="floorplan_script.js"></script>
+</body>
+</html>
