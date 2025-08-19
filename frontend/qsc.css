@@ -1,5 +1,3 @@
-/* QSC-WEB/frontend/qsc.css */
-
 /* General Body and Layout */
 body {
     font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
@@ -61,6 +59,27 @@ h2 {
 .material-inputs {
     background-color: #e8f5e9; /* Light green for calculation inputs */
     border-color: #c8e6c9;
+}
+/* New styles for other input types */
+#steelInputs {
+    background-color: #e3f2fd; /* Light blue */
+    border-color: #bbdefb;
+}
+#plasteringInputs {
+    background-color: #fff3e0; /* Light orange */
+    border-color: #ffe0b2;
+}
+#roofingInputs {
+    background-color: #fce4ec; /* Light pink */
+    border-color: #f8bbd0;
+}
+#earthworkInputs {
+    background-color: #eceff1; /* Light gray-blue */
+    border-color: #cfd8dc;
+}
+#tankInputs {
+    background-color: #e1f5fe; /* Lighter blue */
+    border-color: #b3e5fc;
 }
 
 /* Input Groups */

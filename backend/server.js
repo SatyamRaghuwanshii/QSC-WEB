@@ -1,4 +1,4 @@
-// QSC-WEB/backend/server.js (COMPLETE CODE WITH ALL FIXES)
+// File: backend/server.js
 
 // Load environment variables from .env file
 require('dotenv').config();
@@ -128,7 +128,7 @@ app.post('/api/reports/csv', (req, res) => {
             return res.status(400).json({ message: 'Project name and calculations are required for report generation.' });
         }
 
-        let csvContent = 'Project Name,Material Type,Item Name,Length (m),Width (m),Height (m),Thickness (m),Plaster Area (sqm),Plaster Thickness (m),Calculated Bricks (Nos),Calculated Cement (bags),Calculated Sand (m3),Calculated Aggregate (m3),Calculated Wet Volume (m3),Waste Factor (%)\n';
+        let csvContent = 'Project Name,Material Type,Item Name,Length (m),Width (m),Height (m),Thickness (m),Area (sqm),Calculated Bricks (Nos),Calculated Cement (bags),Calculated Sand (m3),Calculated Aggregate (m3),Calculated Wet Volume (m3),Calculated Steel (kg),Calculated Tiles (pcs),Calculated Paint (Ltr),Calculated Earthwork Vol (m3),Calculated Tank Vol (m3),Waste Factor (%)\n';
 
         calculations.forEach(calc => {
             const wasteFactor = calc.wasteFactor || 0;
@@ -137,25 +137,41 @@ app.post('/api/reports/csv', (req, res) => {
             let calculatedSandM3 = '';
             let calculatedAggregateM3 = '';
             let calculatedWetVolumeM3 = '';
-            let plasterArea = '';
-            let plasterThickness = '';
+            let calculatedSteelKg = '';
+            let calculatedTiles = '';
+            let calculatedPaint = '';
+            let calculatedEarthworkVol = '';
+            let calculatedTankVol = '';
+            let area = '';
 
             if (calc.calculated) {
                 if (calc.type === 'bricks') {
                     calculatedBricks = calc.calculated.totalBricks ? calc.calculated.totalBricks.toFixed(0) : '';
                     calculatedCementBags = calc.calculated.cementMortarBags ? calc.calculated.cementMortarBags.toFixed(1) : '';
                     calculatedSandM3 = calc.calculated.sandMortarVolume ? calc.calculated.sandMortarVolume.toFixed(2) : '';
-                } else if (calc.type === 'concrete') {
+                } else if (calc.type === 'concrete' || (calc.type === 'roofing' && calc.roofingType === 'rcc_slab')) {
                     calculatedCementBags = calc.calculated.cementBags ? calc.calculated.cementBags.toFixed(1) : '';
                     calculatedSandM3 = calc.calculated.sandVolume ? calc.calculated.sandVolume.toFixed(2) : '';
                     calculatedAggregateM3 = calc.calculated.aggregateVolume ? calc.calculated.aggregateVolume.toFixed(2) : '';
                     calculatedWetVolumeM3 = calc.calculated.wetVolume ? calc.calculated.wetVolume.toFixed(2) : '';
-                } else if (calc.type === 'plaster') {
-                    plasterArea = calc.plasterArea ? calc.plasterArea.toFixed(2) : '';
-                    plasterThickness = calc.plasterThickness ? calc.plasterThickness.toFixed(3) : '';
+                } else if (calc.type === 'steel') {
+                    calculatedSteelKg = calc.calculated.totalWeight ? calc.calculated.totalWeight.toFixed(2) : '';
+                } else if (calc.type === 'plastering' && calc.plasteringMaterialType === 'plastering') {
+                    area = calc.surfaceArea ? calc.surfaceArea.toFixed(2) : '';
                     calculatedCementBags = calc.calculated.cementBags ? calc.calculated.cementBags.toFixed(1) : '';
                     calculatedSandM3 = calc.calculated.sandVolume ? calc.calculated.sandVolume.toFixed(2) : '';
-                    calculatedWetVolumeM3 = calc.calculated.wetVolume ? calc.calculated.wetVolume.toFixed(2) : '';
+                } else if (calc.type === 'plastering' && calc.plasteringMaterialType === 'flooring') {
+                    area = calc.surfaceArea ? calc.surfaceArea.toFixed(2) : '';
+                    calculatedTiles = calc.calculated.tilesNeeded ? calc.calculated.tilesNeeded : '';
+                } else if (calc.type === 'plastering' && calc.plasteringMaterialType === 'painting') {
+                    area = calc.surfaceArea ? calc.surfaceArea.toFixed(2) : '';
+                    calculatedPaint = calc.calculated.paintNeeded ? calc.calculated.paintNeeded.toFixed(2) : '';
+                } else if (calc.type === 'roofing' && calc.roofingType === 'truss_roof') {
+                    area = calc.trussArea ? calc.trussArea.toFixed(2) : '';
+                } else if (calc.type === 'earthwork') {
+                    calculatedEarthworkVol = calc.calculated.totalVolume ? calc.calculated.totalVolume.toFixed(2) : '';
+                } else if (calc.type === 'tank') {
+                    calculatedTankVol = calc.calculated.volume ? calc.calculated.volume.toFixed(2) : '';
                 }
             }
             
@@ -164,13 +180,13 @@ app.post('/api/reports/csv', (req, res) => {
             const height = calc.height ? calc.height.toFixed(2) : (calc.wallHeight ? calc.wallHeight.toFixed(2) : '');
             const thickness = calc.thickness ? calc.thickness.toFixed(2) : (calc.wallThickness ? calc.wallThickness.toFixed(2) : '');
 
-
             csvContent += `"${projectName}",`;
             csvContent += `"${calc.type}",`;
             csvContent += `"${calc.name || 'N/A'}",`;
-            csvContent += `${length},${width},${height},${thickness},`;
-            csvContent += `${plasterArea},${plasterThickness},`;
+            csvContent += `${length},${width},${height},${thickness},${area},`;
+            csvContent += `${calc.plasteringThickness ? calc.plasteringThickness.toFixed(3) : ''},`;
             csvContent += `${calculatedBricks},${calculatedCementBags},${calculatedSandM3},${calculatedAggregateM3},${calculatedWetVolumeM3},`;
+            csvContent += `${calculatedSteelKg},${calculatedTiles},${calculatedPaint},${calculatedEarthworkVol},${calculatedTankVol},`;
             csvContent += `${wasteFactor}\n`;
         });
 
@@ -207,6 +223,11 @@ app.post('/api/reports/pdf', (req, res) => {
         let totalSandM3 = 0;
         let totalAggregateM3 = 0;
         let totalBricksNos = 0;
+        let totalSteelKg = 0;
+        let totalTilesNos = 0;
+        let totalPaintLtr = 0;
+        let totalEarthworkM3 = 0;
+        let totalTankVolumeM3 = 0;
         let totalEstimatedCost = 0;
 
         const materialPrices = {
@@ -214,6 +235,12 @@ app.post('/api/reports/pdf', (req, res) => {
             'sand_m3': 2500,
             'aggregate_m3': 1800,
             'bricks_nos': 12,
+            'steel_kg': 65,
+            'tiles_m2': 400,
+            'paint_Ltr': 350,
+            'truss_roof_m2': 1000,
+            'earthwork_m3': 500,
+            'tank_volume_m3': 4000
         };
 
         doc.fontSize(14).text('Individual Calculations:', { underline: true }).moveDown(0.5);
@@ -233,7 +260,7 @@ app.post('/api/reports/pdf', (req, res) => {
                         totalBricksNos += b.totalBricks || 0;
                         totalCementBags += b.cementMortarBags || 0;
                         totalSandM3 += b.sandMortarVolume || 0;
-                    } else if (calc.type === 'concrete') {
+                    } else if (calc.type === 'concrete' || (calc.type === 'roofing' && calc.roofingType === 'rcc_slab')) {
                         const c = calc.calculated;
                         doc.fontSize(10).text(`    - Wet Volume: ${c.wetVolume ? c.wetVolume.toFixed(2) : 'N/A'} m³`);
                         doc.text(`    - Cement: ${c.cementBags ? c.cementBags.toFixed(1) : 'N/A'} bags`);
@@ -242,14 +269,43 @@ app.post('/api/reports/pdf', (req, res) => {
                         totalCementBags += c.cementBags || 0;
                         totalSandM3 += c.sandVolume || 0;
                         totalAggregateM3 += c.aggregateVolume || 0;
-                    } else if (calc.type === 'plaster') {
+                    } else if (calc.type === 'steel') {
+                        const s = calc.calculated;
+                        doc.fontSize(10).text(`    - Total Steel Weight: ${s.totalWeight ? s.totalWeight.toFixed(2) : 'N/A'} kg`);
+                        totalSteelKg += s.totalWeight || 0;
+                    } else if (calc.type === 'plastering' && calc.plasteringMaterialType === 'plastering') {
                         const p = calc.calculated;
-                        doc.fontSize(10).text(`    - Area: ${calc.plasterArea ? calc.plasterArea.toFixed(2) : 'N/A'} sqm`);
-                        doc.text(`    - Thickness: ${calc.plasterThickness ? calc.plasterThickness.toFixed(3) : 'N/A'} m`);
+                        doc.fontSize(10).text(`    - Area: ${calc.surfaceArea ? calc.surfaceArea.toFixed(2) : 'N/A'} sqm`);
                         doc.text(`    - Cement: ${p.cementBags ? p.cementBags.toFixed(1) : 'N/A'} bags`);
                         doc.text(`    - Sand: ${p.sandVolume ? p.sandVolume.toFixed(2) : 'N/A'} m³`);
                         totalCementBags += p.cementBags || 0;
                         totalSandM3 += p.sandVolume || 0;
+                    } else if (calc.type === 'plastering' && calc.plasteringMaterialType === 'flooring') {
+                        const p = calc.calculated;
+                        doc.fontSize(10).text(`    - Area: ${calc.surfaceArea ? calc.surfaceArea.toFixed(2) : 'N/A'} sqm`);
+                        doc.text(`    - Tiles: ${p.tilesNeeded ? p.tilesNeeded : 'N/A'} pcs`);
+                        totalTilesNos += p.tilesNeeded || 0;
+                    } else if (calc.type === 'plastering' && calc.plasteringMaterialType === 'painting') {
+                        const p = calc.calculated;
+                        doc.fontSize(10).text(`    - Area: ${calc.surfaceArea ? calc.surfaceArea.toFixed(2) : 'N/A'} sqm`);
+                        doc.text(`    - Paint: ${p.paintNeeded ? p.paintNeeded.toFixed(2) : 'N/A'} Ltr`);
+                        totalPaintLtr += p.paintNeeded || 0;
+                    } else if (calc.type === 'roofing' && calc.roofingType === 'truss_roof') {
+                         const r = calc.calculated;
+                         doc.fontSize(10).text(`    - Truss Roof Area: ${r.area ? r.area.toFixed(2) : 'N/A'} m²`);
+                         doc.text(`    - Material: ${r.material} with ${r.covering} covering`);
+                         totalEstimatedCost += (r.area || 0) * (materialPrices.truss_roof_m2 || 0);
+                    } else if (calc.type === 'earthwork') {
+                        const e = calc.calculated;
+                        doc.fontSize(10).text(`    - Excavation Volume: ${e.totalVolume ? e.totalVolume.toFixed(2) : 'N/A'} m³`);
+                        totalEarthworkM3 += e.totalVolume || 0;
+                        totalEstimatedCost += (e.totalVolume || 0) * (materialPrices.earthwork_m3 || 0);
+                    } else if (calc.type === 'tank') {
+                        const t = calc.calculated;
+                        doc.fontSize(10).text(`    - Tank Volume: ${t.volume ? t.volume.toFixed(2) : 'N/A'} m³`);
+                        doc.text(`    - Volume in Liters: ${t.volume ? (t.volume * 1000).toFixed(2) : 'N/A'} Ltr`);
+                        totalTankVolumeM3 += t.volume || 0;
+                        totalEstimatedCost += (t.volume || 0) * (materialPrices.tank_volume_m3 || 0);
                     }
                 }
                 doc.moveDown(0.5);
@@ -257,17 +313,24 @@ app.post('/api/reports/pdf', (req, res) => {
         }
         doc.moveDown(1);
 
-
         totalEstimatedCost += totalCementBags * materialPrices.cement_bags;
         totalEstimatedCost += totalSandM3 * materialPrices.sand_m3;
         totalEstimatedCost += totalAggregateM3 * materialPrices.aggregate_m3;
         totalEstimatedCost += totalBricksNos * materialPrices.bricks_nos;
+        totalEstimatedCost += totalSteelKg * materialPrices.steel_kg;
+        totalEstimatedCost += totalTilesNos * materialPrices.tiles_m2;
+        totalEstimatedCost += totalPaintLtr * materialPrices.paint_Ltr;
 
         doc.fontSize(14).text('Overall Project Summary:', { underline: true }).moveDown(0.5);
         doc.fontSize(12).text(`Total Cement: ${totalCementBags.toFixed(1)} bags`);
         doc.text(`Total Sand: ${totalSandM3.toFixed(2)} m³`);
         doc.text(`Total Aggregate: ${totalAggregateM3.toFixed(2)} m³`);
         doc.text(`Total Bricks: ${Math.ceil(totalBricksNos)} Nos.`);
+        doc.text(`Total Steel: ${totalSteelKg.toFixed(2)} kg`);
+        doc.text(`Total Tiles: ${totalTilesNos} pcs`);
+        doc.text(`Total Paint: ${totalPaintLtr.toFixed(2)} Ltr`);
+        doc.text(`Total Earthwork Volume: ${totalEarthworkM3.toFixed(2)} m³`);
+        doc.text(`Total Tank Volume: ${totalTankVolumeM3.toFixed(2)} m³`);
         doc.moveDown(0.5);
         doc.fontSize(16).text(`Estimated Total Cost: ₹ ${totalEstimatedCost.toLocaleString('en-IN', {minimumFractionDigits: 2, maximumFractionDigits: 2})}`, { continued: false }).moveDown(1);
         doc.fontSize(10).text('Note: Costs are estimates based on predefined prices and should be verified with actual market rates.', { align: 'center', oblique: true });
@@ -277,170 +340,6 @@ app.post('/api/reports/pdf', (req, res) => {
     } catch (error) {
         console.error('Error generating PDF report:', error);
         res.status(500).json({ message: 'Error generating PDF report', error: error.message });
-    }
-});
-
-
-// --- API Route to Generate Floor Plan using MOCKED AI (FOR DEMONSTRATION) ---
-app.post('/api/generate-floorplan-ai', (req, res) => {
-    try {
-        const { plotWidth, plotHeight, desiredRooms, promptText } = req.body;
-
-        if (!plotWidth || !plotHeight) {
-            return res.status(400).json({ message: 'Plot dimensions (width and height) are required.' });
-        }
-
-        // --- MOCKED AI LOGIC ---
-        const mockFloorPlanTemplates = [
-            {
-                name: "Simple 1BHK Template",
-                plotWidth: 7,
-                plotHeight: 10,
-                walls: [
-                    {x: 0, y: 0, width: 7, height: 0.20, length: 7, thickness: 0.20, type: "external_wall", name: "Top Ext Wall"},
-                    {x: 0, y: 9.80, width: 7, height: 0.20, length: 7, thickness: 0.20, type: "external_wall", name: "Bottom Ext Wall"},
-                    {x: 0, y: 0.20, width: 0.20, height: 9.60, length: 9.60, thickness: 0.20, type: "external_wall", name: "Left Ext Wall"},
-                    {x: 6.80, y: 0.20, width: 0.20, height: 9.60, length: 9.60, thickness: 0.20, type: "external_wall", name: "Right Ext Wall"},
-                    {x: 0.20, y: 6.00, width: 6.60, height: 0.15, length: 6.60, thickness: 0.15, type: "internal_wall", name: "Bedroom-Living Wall"},
-                    {x: 4.00, y: 0.20, width: 0.15, height: 5.80, length: 5.80, thickness: 0.15, type: "internal_wall", name: "Bathroom-Kitchen Wall"},
-                    {x: 4.00, y: 6.15, width: 0.15, height: 3.65, length: 3.65, thickness: 0.15, type: "internal_wall", name: "Living-Dining Wall"}
-                ],
-                rooms: [
-                    {x: 0.20, y: 0.20, width: 3.80, height: 5.80, name: "Bedroom", type: "room"},
-                    {x: 4.15, y: 0.20, width: 2.65, height: 5.80, name: "Bathroom", type: "room"},
-                    {x: 0.20, y: 6.15, width: 3.80, height: 3.65, name: "Living Area", type: "room"},
-                    {x: 4.15, y: 6.15, width: 2.65, height: 3.65, name: "Kitchen/Dining", type: "room"}
-                ]
-            },
-            {
-                name: "Standard 2BHK Template",
-                plotWidth: 10,
-                plotHeight: 12,
-                walls: [
-                    {x: 0, y: 0, width: 10, height: 0.20, length: 10, thickness: 0.20, type: "external_wall", name: "Top Ext Wall"},
-                    {x: 0, y: 11.80, width: 10, height: 0.20, length: 10, thickness: 0.20, type: "external_wall", name: "Bottom Ext Wall"},
-                    {x: 0, y: 0.20, width: 0.20, height: 11.60, length: 11.60, thickness: 0.20, type: "external_wall", name: "Left Ext Wall"},
-                    {x: 9.80, y: 0.20, width: 0.20, height: 11.60, length: 11.60, thickness: 0.20, type: "external_wall", name: "Right Ext Wall"},
-                    {x: 0.20, y: 6.00, width: 9.60, height: 0.15, length: 9.60, thickness: 0.15, type: "internal_wall", name: "Central Horizontal Divide"},
-                    {x: 4.50, y: 0.20, width: 0.15, height: 3.80, length: 3.80, thickness: 0.15, type: "internal_wall", name: "Bedroom1-Bath1 Wall"},
-                    {x: 7.00, y: 4.15, width: 0.15, height: 7.65, length: 7.65, thickness: 0.15, type: "internal_wall", name: "Bedroom2-Living Wall"}
-                ],
-                rooms: [
-                    {x: 0.20, y: 0.20, width: 4.30, height: 3.80, name: "Bedroom 1", type: "room"},
-                    {x: 4.65, y: 0.20, width: 5.15, height: 3.80, name: "Kitchen", type: "room"},
-                    {x: 0.20, y: 4.15, width: 6.80, height: 7.65, name: "Living/Dining", type: "room"},
-                    {x: 7.15, y: 4.15, width: 2.65, height: 7.65, name: "Bedroom 2", type: "room"}
-                ]
-            },
-            {
-                name: "Combined 2BHK + Stairs Template",
-                plotWidth: 12,
-                plotHeight: 12,
-                walls: [
-                    {x: 0, y: 0, width: 12, height: 0.20, length: 12, thickness: 0.20, type: "external_wall", name: "Top Ext Wall"},
-                    {x: 0, y: 11.80, width: 12, height: 0.20, length: 12, thickness: 0.20, type: "external_wall", name: "Bottom Ext Wall"},
-                    {x: 0, y: 0.20, width: 0.20, height: 11.60, length: 11.60, thickness: 0.20, type: "external_wall", name: "Left Ext Wall"},
-                    {x: 11.80, y: 0.20, width: 0.20, height: 11.60, length: 11.60, thickness: 0.20, type: "external_wall", name: "Right Ext Wall"},
-                    {x: 0.20, y: 6.00, width: 11.60, height: 0.15, length: 11.60, thickness: 0.15, type: "internal_wall", name: "Central Horizontal Divide"},
-                    {x: 4.00, y: 0.20, width: 0.15, height: 5.80, length: 5.80, thickness: 0.15, type: "internal_wall", name: "Bedroom1-Living Wall"},
-                    {x: 8.00, y: 0.20, width: 0.15, height: 5.80, length: 5.80, thickness: 0.15, type: "internal_wall", name: "Kitchen-Stairwell Wall"},
-                    {x: 8.00, y: 6.15, width: 0.15, height: 5.65, length: 5.65, thickness: 0.15, type: "internal_wall", name: "Bedroom2-Bathroom Wall"}
-                ],
-                rooms: [
-                    {x: 0.20, y: 0.20, width: 3.80, height: 5.80, name: "Bedroom 1", type: "room"},
-                    {x: 4.15, y: 0.20, width: 3.85, height: 5.80, name: "Living Area", type: "room"},
-                    {x: 8.15, y: 0.20, width: 3.65, height: 5.80, name: "Kitchen", type: "room"},
-                    {x: 0.20, y: 6.15, width: 7.80, height: 5.65, name: "Stairwell Access", type: "room"},
-                    {x: 8.15, y: 6.15, width: 3.65, height: 5.65, name: "Bedroom 2", type: "room"}
-                ],
-                stairs: [
-                    {x: 0.50, y: 6.50, width: 2.00, height: 1.00, type: "stair_segment", name: "Stair Bottom"},
-                    {x: 0.50, y: 7.80, width: 2.00, height: 1.00, type: "stair_segment", name: "Stair Landing"},
-                    {x: 0.50, y: 9.10, width: 2.00, height: 1.00, type: "stair_segment", name: "Stair Top"}
-                ]
-            }
-        ];
-        
-        // Based on user prompt, select one of the hardcoded templates
-        let selectedTemplateData;
-        const combinedPrompt = `${desiredRooms.toLowerCase()} ${promptText.toLowerCase()}`;
-
-        if (combinedPrompt.includes("stairs") && combinedPrompt.includes("2 bedrooms")) {
-            selectedTemplateData = mockFloorPlanTemplates[2];
-        } else if (combinedPrompt.includes("stairs")) {
-            selectedTemplateData = mockFloorPlanTemplates[2];
-        } else if (combinedPrompt.includes("2 bedrooms")) {
-            selectedTemplateData = mockFloorPlanTemplates[1];
-        } else if (combinedPrompt.includes("1 bedroom")) {
-            selectedTemplateData = mockFloorPlanTemplates[0];
-        } else {
-            selectedTemplateData = mockFloorPlanTemplates[0]; // Fallback
-        }
-        
-        const originalTemplatePlotWidth = selectedTemplateData.plotWidth;
-        const originalTemplatePlotHeight = selectedTemplateData.plotHeight;
-        const scaleX = plotWidth / originalTemplatePlotWidth;
-        const scaleY = plotHeight / originalTemplatePlotHeight;
-
-        const FINAL_EXTERNAL_WALL_THICKNESS_M = 0.20;
-        const FINAL_INTERNAL_WALL_THICKNESS_M = 0.15;
-
-        // Scale walls
-        const scaledWalls = selectedTemplateData.walls.map(wall => {
-            const isHorizontal = wall.width > wall.height;
-            const wallLength = (isHorizontal ? wall.width : wall.height) * (isHorizontal ? scaleX : scaleY);
-            const wallThickness = (wall.type === "external_wall") ? FINAL_EXTERNAL_WALL_THICKNESS_M : FINAL_INTERNAL_WALL_THICKNESS_M;
-
-            const scaledWallWidth = isHorizontal ? wallLength : wallThickness;
-            const scaledWallHeight = isHorizontal ? wallThickness : wallLength;
-
-            return {
-                ...wall,
-                x: wall.x * scaleX,
-                y: wall.y * scaleY,
-                width: scaledWallWidth,
-                height: scaledWallHeight,
-                length: wallLength,
-                thickness: wallThickness
-            };
-        });
-
-        // Scale rooms
-        const scaledRooms = selectedTemplateData.rooms.map(room => ({
-            ...room,
-            x: room.x * scaleX,
-            y: room.y * scaleY,
-            width: room.width * scaleX,
-            height: room.height * scaleY,
-            area: (room.width * scaleX) * (room.height * scaleY)
-        }));
-
-        // Scale stairs
-        const scaledStairs = selectedTemplateData.stairs ? selectedTemplateData.stairs.map(stair => ({
-            ...stair,
-            x: stair.x * scaleX,
-            y: stair.y * scaleY,
-            width: stair.width * scaleX,
-            height: stair.height * scaleY
-        })) : [];
-
-        // Combine all scaled elements
-        const aiResponse = {
-            walls: scaledWalls,
-            rooms: scaledRooms,
-            stairs: scaledStairs,
-            plotWidth: plotWidth,
-            plotHeight: plotHeight
-        };
-        // --- END MOCK AI LOGIC ---
-        
-        console.log("MOCKED AI: Matched template:", selectedTemplateData.name, "as response for requested plot:", plotWidth, "x", plotHeight);
-        
-        res.status(200).json(aiResponse);
-
-    } catch (error) {
-        console.error('Error in MOCKED AI generation endpoint:', error);
-        res.status(500).json({ message: 'Internal server error in mock AI generation', error: error.message });
     }
 });
 

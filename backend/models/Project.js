@@ -4,20 +4,20 @@ const MaterialCalculationSchema = new mongoose.Schema({
     type: {
         type: String,
         required: true,
-        enum: ['concrete', 'bricks', 'plaster', 'steel', 'paint', 'flooring'] // Future types
+        enum: ['concrete', 'bricks', 'steel', 'plastering', 'roofing', 'earthwork', 'tank']
     },
-    name: { // e.g., "Ground Floor Slab", "Living Room Wall"
+    name: {
         type: String,
         required: true
     },
     length: Number,
     width: Number,
     height: Number,
-    depth: Number, // Alias for height/depth depending on context
+    depth: Number,
     thickness: Number,
     wasteFactor: {
         type: Number,
-        default: 5 // Default 5% waste
+        default: 5
     },
     concreteMix: String,
     mortarMix: String,
@@ -28,13 +28,54 @@ const MaterialCalculationSchema = new mongoose.Schema({
     brickSizeWidth: Number,
     brickSizeHeight: Number,
     mortarJointThickness: Number,
+    
+    steelType: String,
+    steelBarDiameter: Number,
+    steelBarLength: Number,
+    steelBarQuantity: Number,
+    steelStirrupDiameter: Number,
+    steelStirrupLength: Number,
+    steelStirrupQuantity: Number,
+    steelWasteFactor: Number,
 
-    calculated: { // This object will store the calculated results
-        type: mongoose.Schema.Types.Mixed // Use Mixed type for flexible structure (different properties for concrete vs. bricks)
+    plasteringMaterialType: String,
+    surfaceArea: Number,
+    plasteringThickness: Number,
+    plasteringMix: String,
+    plasteringWasteFactor: Number,
+    tileArea: Number,
+    flooringWasteFactor: Number,
+    paintCoverage: Number,
+    paintCoats: Number,
+    paintingWasteFactor: Number,
+
+    roofingType: String,
+    rccLength: Number,
+    rccWidth: Number,
+    rccThickness: Number,
+    rccMix: String,
+    rccWasteFactor: Number,
+    trussArea: Number,
+    trussMaterial: String,
+    trussCovering: String,
+    
+    earthLength: Number,
+    earthWidth: Number,
+    earthDepth: Number,
+
+    tankShape: String,
+    tankLength: Number,
+    tankWidth: Number,
+    tankHeight: Number,
+    tankDiameter: Number,
+    tankCylHeight: Number,
+
+    calculated: {
+        type: mongoose.Schema.Types.Mixed
     },
 
-    floor: String, // e.g., "Ground Floor", "First Floor"
-    buildingPart: String, // e.g., "Slab", "Column", "Wall"
+    floor: String,
+    buildingPart: String,
     notes: String
 });
 

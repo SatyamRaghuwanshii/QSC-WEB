@@ -4,17 +4,24 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>QSC App - Material Calculator</title>
-    <link rel="stylesheet" href="qsc.css"> </head>
+    <link rel="stylesheet" href="qsc.css">
+</head>
 <body>
     <div class="container">
-        <a href="index.html" class="nav-button">← Back to Home</a> <h1>Building Material Calculator (QSC)</h1>
+        <a href="index.html" class="nav-button">← Back to Home</a>
+        <h1>Building Material Calculator (QSC)</h1>
 
         <div class="calculator-section">
             <label for="materialType">Select Material:</label>
             <select id="materialType">
                 <option value="concrete">Concrete</option>
                 <option value="bricks">Bricks</option>
-                </select>
+                <option value="steel">Steel Reinforcement</option>
+                <option value="plastering">Plastering / Flooring / Painting</option>
+                <option value="roofing">Roofing</option>
+                <option value="earthwork">Earthwork (Excavation/Backfilling)</option>
+                <option value="tank">Water Tank / Septic Tank</option>
+            </select>
         </div>
 
         <div id="concreteInputs" class="material-inputs">
@@ -81,10 +88,210 @@
             </div>
         </div>
 
+        <div id="steelInputs" class="material-inputs hidden">
+            <h2>Steel Reinforcement Calculator</h2>
+            <div class="input-group">
+                <label for="steelType">Type of Reinforcement:</label>
+                <select id="steelType">
+                    <option value="bars">Steel Bars</option>
+                    <option value="stirrups">Stirrups</option>
+                </select>
+            </div>
+            <div id="steelBarsInputs">
+                <div class="input-group">
+                    <label for="steelBarDiameter">Bar Diameter (mm):</label>
+                    <input type="number" id="steelBarDiameter" step="1" min="1" placeholder="e.g., 12">
+                </div>
+                <div class="input-group">
+                    <label for="steelBarLength">Total Length (m):</label>
+                    <input type="number" id="steelBarLength" step="0.01" min="0" placeholder="e.g., 150.0">
+                </div>
+                <div class="input-group">
+                    <label for="steelBarQuantity">Quantity (pcs):</label>
+                    <input type="number" id="steelBarQuantity" step="1" min="1" placeholder="e.g., 15">
+                </div>
+            </div>
+            <div id="steelStirrupsInputs" class="hidden">
+                <div class="input-group">
+                    <label for="steelStirrupDiameter">Stirrup Bar Diameter (mm):</label>
+                    <input type="number" id="steelStirrupDiameter" step="1" min="1" placeholder="e.g., 8">
+                </div>
+                <div class="input-group">
+                    <label for="steelStirrupLength">Stirrup Leg Length (m):</label>
+                    <input type="number" id="steelStirrupLength" step="0.01" min="0" placeholder="e.g., 0.3">
+                </div>
+                <div class="input-group">
+                    <label for="steelStirrupQuantity">Quantity (pcs):</label>
+                    <input type="number" id="steelStirrupQuantity" step="1" min="1" placeholder="e.g., 100">
+                </div>
+            </div>
+            <div class="input-group">
+                <label for="steelWasteFactor">Waste Factor (%):</label>
+                <input type="number" id="steelWasteFactor" step="0.1" min="0" max="100" value="5">
+            </div>
+        </div>
+
+        <div id="plasteringInputs" class="material-inputs hidden">
+            <h2>Plastering / Flooring / Painting Estimator</h2>
+            <div class="input-group">
+                <label for="surfaceArea">Surface Area (m²):</label>
+                <input type="number" id="surfaceArea" step="0.01" min="0" placeholder="e.g., 100">
+            </div>
+            <div class="input-group">
+                <label for="plasteringMaterialType">Material Type:</label>
+                <select id="plasteringMaterialType">
+                    <option value="plastering">Plastering (Internal/External)</option>
+                    <option value="flooring">Flooring (Tiles/Marble)</option>
+                    <option value="painting">Painting (Walls)</option>
+                </select>
+            </div>
+            <div id="plasteringSubInputs" class="hidden">
+                <div class="input-group">
+                    <label for="plasteringThickness">Plastering Thickness (mm):</label>
+                    <input type="number" id="plasteringThickness" step="1" min="1" value="12" placeholder="e.g., 12">
+                </div>
+                <div class="input-group">
+                    <label for="plasteringMix">Plastering Mix Ratio (e.g., 1:6):</label>
+                    <input type="text" id="plasteringMix" value="1:6" placeholder="e.g., 1:6">
+                </div>
+                <div class="input-group">
+                    <label for="plasteringWasteFactor">Waste Factor (%):</label>
+                    <input type="number" id="plasteringWasteFactor" step="0.1" min="0" max="100" value="10">
+                </div>
+            </div>
+            <div id="flooringSubInputs" class="hidden">
+                <div class="input-group">
+                    <label for="tileArea">Single Tile Area (m²):</label>
+                    <input type="number" id="tileArea" step="0.001" min="0.001" value="0.36" placeholder="e.g., 0.36 (0.6m x 0.6m)">
+                </div>
+                <div class="input-group">
+                    <label for="flooringWasteFactor">Waste Factor (%):</label>
+                    <input type="number" id="flooringWasteFactor" step="0.1" min="0" max="100" value="5">
+                </div>
+            </div>
+            <div id="paintingSubInputs" class="hidden">
+                <div class="input-group">
+                    <label for="paintCoverage">Paint Coverage (m²/Ltr per coat):</label>
+                    <input type="number" id="paintCoverage" step="0.1" min="0.1" value="10" placeholder="e.g., 10">
+                </div>
+                <div class="input-group">
+                    <label for="paintCoats">Number of Coats:</label>
+                    <input type="number" id="paintCoats" step="1" min="1" value="2">
+                </div>
+                <div class="input-group">
+                    <label for="paintingWasteFactor">Waste Factor (%):</label>
+                    <input type="number" id="paintingWasteFactor" step="0.1" min="0" max="100" value="5">
+                </div>
+            </div>
+        </div>
+
+        <div id="roofingInputs" class="material-inputs hidden">
+            <h2>Roofing Materials Calculator</h2>
+            <div class="input-group">
+                <label for="roofingType">Type of Roof:</label>
+                <select id="roofingType">
+                    <option value="rcc_slab">RCC Slab</option>
+                    <option value="truss_roof">Truss Roof</option>
+                </select>
+            </div>
+            <div id="rccSlabInputs" class="hidden">
+                <div class="input-group">
+                    <label for="rccLength">Length (m):</label>
+                    <input type="number" id="rccLength" step="0.01" min="0" placeholder="e.g., 10.0">
+                </div>
+                <div class="input-group">
+                    <label for="rccWidth">Width (m):</label>
+                    <input type="number" id="rccWidth" step="0.01" min="0" placeholder="e.g., 8.0">
+                </div>
+                <div class="input-group">
+                    <label for="rccThickness">Slab Thickness (m):</label>
+                    <input type="number" id="rccThickness" step="0.01" min="0" placeholder="e.g., 0.15">
+                </div>
+                <div class="input-group">
+                    <label for="rccMix">Concrete Mix Ratio (e.g., 1:2:4):</label>
+                    <input type="text" id="rccMix" value="1:2:4" placeholder="e.g., 1:2:4">
+                </div>
+                <div class="input-group">
+                    <label for="rccWasteFactor">Waste Factor (%):</label>
+                    <input type="number" id="rccWasteFactor" step="0.1" min="0" max="100" value="5">
+                </div>
+            </div>
+            <div id="trussRoofInputs" class="hidden">
+                <div class="input-group">
+                    <label for="trussArea">Roof Area (m²):</label>
+                    <input type="number" id="trussArea" step="0.01" min="0" placeholder="e.g., 120">
+                </div>
+                <div class="input-group">
+                    <label for="trussMaterial">Truss Material:</label>
+                    <select id="trussMaterial">
+                        <option value="steel">Steel</option>
+                        <option value="wood">Wood</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="trussCovering">Roof Covering:</label>
+                    <select id="trussCovering">
+                        <option value="tiles">Tiles</option>
+                        <option value="sheeting">Sheeting</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <div id="earthworkInputs" class="material-inputs hidden">
+            <h2>Earthwork Calculator</h2>
+            <div class="input-group">
+                <label for="earthLength">Length (m):</label>
+                <input type="number" id="earthLength" step="0.01" min="0" placeholder="e.g., 10.0">
+            </div>
+            <div class="input-group">
+                <label for="earthWidth">Width (m):</label>
+                <input type="number" id="earthWidth" step="0.01" min="0" placeholder="e.g., 5.0">
+            </div>
+            <div class="input-group">
+                <label for="earthDepth">Depth (m):</label>
+                <input type="number" id="earthDepth" step="0.01" min="0" placeholder="e.g., 1.5">
+            </div>
+        </div>
+
+        <div id="tankInputs" class="material-inputs hidden">
+            <h2>Water Tank / Septic Tank Volume Estimator</h2>
+            <div class="input-group">
+                <label for="tankShape">Tank Shape:</label>
+                <select id="tankShape">
+                    <option value="rectangular">Rectangular</option>
+                    <option value="cylindrical">Cylindrical</option>
+                </select>
+            </div>
+            <div id="rectangularTankInputs">
+                <div class="input-group">
+                    <label for="tankLength">Length (m):</label>
+                    <input type="number" id="tankLength" step="0.01" min="0" placeholder="e.g., 2.0">
+                </div>
+                <div class="input-group">
+                    <label for="tankWidth">Width (m):</label>
+                    <input type="number" id="tankWidth" step="0.01" min="0" placeholder="e.g., 1.5">
+                </div>
+                <div class="input-group">
+                    <label for="tankHeight">Height (m):</label>
+                    <input type="number" id="tankHeight" step="0.01" min="0" placeholder="e.g., 1.0">
+                </div>
+            </div>
+            <div id="cylindricalTankInputs" class="hidden">
+                <div class="input-group">
+                    <label for="tankDiameter">Diameter (m):</label>
+                    <input type="number" id="tankDiameter" step="0.01" min="0" placeholder="e.g., 2.0">
+                </div>
+                <div class="input-group">
+                    <label for="tankCylHeight">Height (m):</label>
+                    <input type="number" id="tankCylHeight" step="0.01" min="0" placeholder="e.g., 1.5">
+                </div>
+            </div>
+        </div>
+
         <button id="calculateBtn" class="primary-button-green">Calculate Materials</button>
         
         <button id="goToFloorPlanBtn" class="primary-button" style="margin-top: 15px;">Go to Floor Plan Designer</button>
-
 
         <div class="save-project-section calculator-section">
             <h2>Save Project</h2>
@@ -124,11 +331,12 @@
         <div class="results-section">
             <h2>Calculation Results</h2>
             <div id="results">
-                </div>
+            </div>
         </div>
         <button id="generateReportBtn" class="primary-button-green" style="margin-top: 25px;">Generate Project Report</button>
         <button id="generatePDFReportBtn" class="save-button" style="margin-top: 10px;">Generate PDF Report</button>
     </div>
 
-    <script src="qsc.js"></script> </body>
+    <script src="qsc.js"></script>
+</body>
 </html>

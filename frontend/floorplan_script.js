@@ -440,7 +440,12 @@ document.addEventListener('DOMContentLoaded', () => {
                         wallHeight: 3.0,
                         wallThickness: wallThickness,
                         mortarMix: '1:4',
-                        wasteFactor: 5
+                        wasteFactor: 5,
+                        // FIX: Added missing brick dimensions and mortar joint thickness
+                        brickSizeLength: 0.190,
+                        brickSizeWidth: 0.090,
+                        brickSizeHeight: 0.090,
+                        mortarJointThickness: 0.010
                     });
                 }
             }
